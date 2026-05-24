@@ -1,3 +1,6 @@
 *.ppm
 *.bin
 main
+.DYSM
+.vscode
+*.json
