@@ -5,22 +5,15 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
-#include <float.h>
-#include <stdbool.h>
 
 
 #define WIDTH 100
 #define HEIGHT 100
 #define PPM_SCALER 10
 #define RADIUS 10
-#define SAMPLE_SIZE 100
-#define BIAS 10.0
-#define TRAIN_PASSES 10000
+#define SAMPLE_SIZE 10
 
 typedef float Layer[HEIGHT][WIDTH]; 
-static Layer inputs;
-static Layer weights;
-
 
 static inline int clampi(int x, int low, int high) {
 	if (x < low) x = low;
@@ -62,16 +55,6 @@ void layer_fill_circle(Layer layer, int cx, int cy, int r, float value) {
 }
 
 void layer_save_as_ppm(Layer layer, const char *file_path) {
-	float min = FLT_MAX;
-	float max = FLT_MIN;
-	for (int y = 0; y < HEIGHT; ++y) 
-	{
-		for (int x = 0; x < WIDTH; ++x) 
-		{
-			if (layer[y][x] < min) min = layer[y][x];
-			if (layer[y][x] > max) max = layer[y][x];
-		}
-	}
 	FILE *f = fopen(file_path, "wb");
 	if (f == NULL) {
 		fprintf(stderr, "ERROR: could not open file %s: %m\n", file_path);
@@ -83,11 +66,10 @@ void layer_save_as_ppm(Layer layer, const char *file_path) {
 	
 	for (int y = 0; y < HEIGHT * PPM_SCALER; ++y) {
 		for (int x = 0; x < WIDTH * PPM_SCALER; ++x) {
-			float s = (layer[y / PPM_SCALER][x / PPM_SCALER] - min) / (max - min);
+			float s = layer[y / PPM_SCALER][x / PPM_SCALER];
 			char pixel[3] = {
-				(char) floorf(255 * (1.0f - s)),
 				(char) floorf(255 * s),
-				0
+				0, 0
 			};
 			fwrite(pixel, sizeof(pixel), 1, f);  
 		}
@@ -124,47 +106,20 @@ float feed_forward(Layer inputs, Layer weights)
 	return output;
 }
 
-void add_inputs_to_weights(Layer inputs, Layer weights) 
-{
-	for (int y = 0; y < HEIGHT; ++y)
-	{
-		for (int x = 0; x < WIDTH; ++x)
-		{
-			weights[y][x] += inputs[y][x];
-		}
-	}
-}
-
-void subtract_inputs_from_weights(Layer inputs, Layer weights) 
-{
-	for (int y = 0; y < HEIGHT; ++y)
-	{
-		for (int x = 0; x < WIDTH; ++x)
-		{
-			weights[y][x] -= inputs[y][x];
-		}
-	}
-}
-
-
-
-int rand_range(int low, int high)
-{
-	assert (low < high);
-	return rand() % (high - low) + low;
-}
+static Layer inputs;
+static Layer weights;
 
 void layer_random_rect(Layer layer)
 {
 	layer_fill_rect(inputs, 0, 0, WIDTH, HEIGHT, 0.0f);
 	int x = rand_range(0, WIDTH);
-    int y = rand_range(0, HEIGHT);
+       	int y = rand_range(0, HEIGHT);
 	int w = WIDTH - x;
 	if (w < 2) w = 2;
 	w = rand_range(1, w);
 	int h = HEIGHT - y;
 	if (h < 2) h = 2;
-	h = rand_range(1, h);
+	h = rand_range(1, h);/
 	layer_fill_rect(layer, x, y, w, h, 1.0f);
 }
 
@@ -192,64 +147,34 @@ void foo(Layer layer)
 }
 #endif
 
-int train_pass(Layer inputs, Layer weights)
+int rand_range(int low, int high)
 {
-	int adjusted = 0;
-		for (int i = 0; i < SAMPLE_SIZE; ++i) {
-		layer_random_rect(inputs);
-		if (feed_forward(inputs, weights) > BIAS) 
-		{
-			subtract_inputs_from_weights(inputs, weights);
-			adjusted += 1;
-		}
-		layer_random_circle(inputs);
-		if (feed_forward(inputs, weights) < BIAS) 
-		{
-			add_inputs_to_weights(inputs, weights);
-			adjusted += 1;
-		}
-	}
-	return adjusted;
-		
+	assert (low < high);
+	return rand() % (high - low) + low;
 }
 
-int check_pass(Layer inputs, Layer weights)
-{
-	int adjusted = 0;
-		for (int i = 0; i < SAMPLE_SIZE; ++i) {
-		layer_random_rect(inputs);
-		if (feed_forward(inputs, weights) > BIAS) 
-		{
-			adjusted += 1;
-		}
-		layer_random_circle(inputs);
-		if (feed_forward(inputs, weights) < BIAS) 
-		{
-			adjusted += 1;
-		}
-	}
-	return adjusted;
-}
-
+#define PREFIX "circle"
 int main()
 {
+	
 	char file_path[256];
 	
-	srand(420);
-	int check_adj = check_pass(inputs, weights);
-	printf("The untrained model failed rate is %f\n", check_adj / (2.0 * SAMPLE_SIZE));
-	for (int i = 0; i < TRAIN_PASSES; ++i) 
-	{
-		srand(69);
-		int  adj = train_pass(inputs, weights);
-		snprintf(file_path, sizeof(file_path), "weights-%02d.ppm", i);
-		printf("%s: adjusted %d times\n", file_path, adj);
-		layer_save_as_ppm(weights, file_path);
-		if (adj <= 0) break; 
-	}
+	for (int i = 0; i < SAMPLE_SIZE; ++i) {
+		printf("[INFO] generating "PREFIX" %d\n", i);
+		
+		layer_random_circle(inputs);
 
-	srand(420);
-	check_adj = check_pass(inputs, weights);
-	printf("The trained model failed rate is %f\n", check_adj / (2.0 * SAMPLE_SIZE));
+		snprintf(file_path, sizeof(file_path), ""PREFIX"-%02d.bin", i);
+		layer_save_as_bin(inputs, file_path);
+		snprintf(file_path, sizeof(file_path), ""PREFIX"-%02d.ppm", i);
+		layer_save_as_ppm(inputs, file_path);
+	}
+	//layer_fill_rect(inputs, 0, 0, WIDTH / 2,  HEIGHT / 2, 1.0f);
+	//layer_fill_circle(inputs, 0, 0, RADIUS , 1.0f);
+	//layer_save_as_bin(inputs, "inputs.bin");
+	//float output = feed_forward(inputs, weights);
+	//printf("outputs = %f\n", output);
+	//foo(inputs);
+	
 	return 0;
 }
