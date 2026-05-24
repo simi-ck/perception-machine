@@ -7,10 +7,10 @@
 #include <limits.h>
 
 
-#define WIDTH 20
-#define HEIGHT 20
+#define WIDTH 100
+#define HEIGHT 100
 #define PPM_SCALER 10
-#define RADIUS 20
+#define RADIUS 10
 #define SAMPLE_SIZE 10
 
 typedef float Layer[HEIGHT][WIDTH]; 
@@ -114,8 +114,12 @@ void layer_random_rect(Layer layer)
 	layer_fill_rect(inputs, 0, 0, WIDTH, HEIGHT, 0.0f);
 	int x = rand_range(0, WIDTH);
        	int y = rand_range(0, HEIGHT);
-	int w = rand_range(1, WIDTH);
-	int h = rand_range(1, HEIGHT);
+	int w = WIDTH - x;
+	if (w < 2) w = 2;
+	w = rand_range(1, w);
+	int h = HEIGHT - y;
+	if (h < 2) h = 2;
+	h = rand_range(1, h);/
 	layer_fill_rect(layer, x, y, w, h, 1.0f);
 }
 
@@ -129,6 +133,7 @@ void layer_random_circle(Layer layer)
 	if (r > cy) r = cy;
 	if (r > WIDTH - cx) r = WIDTH - cx;
 	if (r > HEIGHT - cy) r = HEIGHT - cy;
+	if (r < 2) r = 2;
 	r = rand_range(1, r);
 	layer_fill_circle(layer, cx, cy, r, 1.0f);
 }
@@ -144,22 +149,24 @@ void foo(Layer layer)
 
 int rand_range(int low, int high)
 {
-	return rand() % abs(high - low) + low;
+	assert (low < high);
+	return rand() % (high - low) + low;
 }
 
+#define PREFIX "circle"
 int main()
 {
 	
 	char file_path[256];
 	
 	for (int i = 0; i < SAMPLE_SIZE; ++i) {
-		printf("[INFO] generating circle %d\n", i);
+		printf("[INFO] generating "PREFIX" %d\n", i);
 		
 		layer_random_circle(inputs);
 
-		snprintf(file_path, sizeof(file_path), "circle-%02d.bin", i);
+		snprintf(file_path, sizeof(file_path), ""PREFIX"-%02d.bin", i);
 		layer_save_as_bin(inputs, file_path);
-		snprintf(file_path, sizeof(file_path), "circle-%02d.ppm", i);
+		snprintf(file_path, sizeof(file_path), ""PREFIX"-%02d.ppm", i);
 		layer_save_as_ppm(inputs, file_path);
 	}
 	//layer_fill_rect(inputs, 0, 0, WIDTH / 2,  HEIGHT / 2, 1.0f);

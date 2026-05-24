@@ -1,2 +1,3 @@
-# ./build.sh
-# ./main
+# How to use
+- ./build.sh
+- ./main
